@@ -1,0 +1,5 @@
+pandas
+rapidfuzz
+streamlit
+openai
+python-dotenv
