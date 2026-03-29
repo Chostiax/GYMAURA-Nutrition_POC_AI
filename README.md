@@ -1,95 +1,99 @@
-# GymAura Nutrition PoC
+# GymAura Nutrition PoC (AI Version)
 
-## Overview
-This Proof of Concept (PoC) validates whether natural language meal descriptions can be converted into structured food data using an internal USDA-based dataset.
+## Goal
+This PoC extends the baseline nutrition pipeline by integrating an AI model for natural language parsing.
 
-The goal is to test the feasibility of a conversational logging pipeline before integrating mobile input or AI-based approaches.
+The objective is to evaluate whether using an LLM improves food extraction from real user input while keeping the rest of the pipeline unchanged.
 
 ## Scope
-This PoC focuses on the internal text pipeline only:
-1. Text input (natural language sentences)
-2. Food extraction (rule-based)
-3. Dataset matching (USDA-based dataset)
-4. Nutrition calculation (calories, protein, carbs, fat)
 
-## Pipeline
-For each input sentence, the system performs:
-1. Extraction — Detects food items and simple quantities from natural language
-2. Matching — Maps foods to dataset entries using alias normalization, exact match, token overlap, and fuzzy fallback
-3. Nutrition Calculation — Estimates portion size (grams) and scales per-100g values
-4. Aggregation — Computes total calories and macros
+This version replaces the rule-based extractor with an AI-based parser.
 
-## KPIs
-Supervisor-defined targets:
-- Food detection accuracy ≥ 80%
-- Dataset matching success ≥ 85%
-- Quantity detection accuracy (simple cases) ≥ 60%
-- End-to-end success ≥ 70%
+Pipeline:
 
-## Results
-Evaluation performed on 29 natural-language test sentences:
+text input  
+→ AI parsing (LLM → structured JSON)  
+→ dataset matching (USDA-based)  
+→ nutrition calculation  
 
-- Food detection accuracy: 92.9%
-- Dataset matching success: 92.9%
-- Quantity detection accuracy: 82.8%
-- End-to-end success: 86.2%
+## Key Difference from Baseline
 
-All KPI targets are met.
+Baseline:
+- rule-based extraction (regex / heuristics)
 
-## How to Run
-Requirements:
-- Python 3.10+
+AI version:
+- LLM parses sentence into structured JSON
+- same matcher and nutrition logic are reused
+
+This allows a fair comparison between both approaches.
+
+## AI Parsing
+
+The AI model:
+- extracts food items
+- extracts quantities and units
+- interprets "a/an" as quantity = 1
+- maps vague quantities like "some" to default values (e.g. 100g)
+- can optionally decompose composite dishes (e.g. "caesar salad") into main ingredients
+
+Example:
+
+Input:
+"I ate a big caesar salad and 2 tomatoes"
+
+Output:
+- lettuce (200g)
+- chicken (150g)
+- croutons (50g)
+- parmesan (30g)
+- caesar dressing (70g)
+- tomato (2)
+
+## Dataset Matching
+
+Each extracted (or inferred) food is matched against the internal USDA dataset using:
+- normalization
+- exact matching
+- token overlap
+- fuzzy matching fallback
+
+## Nutrition Calculation
+
+Nutrition is computed from the dataset:
+- calories
+- protein
+- carbs
+- fat
+
+Even when the AI infers ingredients, the nutritional values come from the dataset.
+
+## Models Used
+
+- gpt-5-mini (default, more accurate)
+- gpt-5-nano (cheaper alternative)
+
+The model can be selected in the UI.
+
+## Token Usage
+
+Each request consumes tokens:
+- depends on sentence length and model
+- used to estimate cost per request
+
+
+## Running the Project
 
 Install dependencies:
-python -m pip install -r requirements.txt
 
-Run the project:
-python main.py
+pip install -r requirements.txt
 
-This will:
-- Load the dataset
-- Run a demo example
-- Evaluate all test cases
-- Print metrics and detailed results
+Run Streamlit UI:
 
-## Project Structure
+python -m streamlit run app.py
 
-```bash
-GYMAURA-NUTRITION-POC/
-│
-├── data/
-│   └── food_item_rows.csv
-│
-├── src/
-│   ├── data_prep.py
-│   ├── extractor.py
-│   ├── matcher.py
-│   ├── nutrition.py
-│   ├── pipeline.py
-│   └── evaluation.py
-│
-├── tests/
-│   └── test_cases.py
-│
-├── main.py
-├── README.md
-└── requirements.txt
-```
+## Summary
 
-## Design Decisions
-- Python-first approach for rapid iteration
-- Rule-based extraction to build a stable baseline
-- Strict evaluation to ensure realistic performance
-- Semi-curated rules to improve robustness without overfitting
-
-## Limitations
-- Quantity estimation handles only simple cases
-- Nutrition is computed only when portion size can be estimated
-- Generic food matching can still be imperfect
-- Extraction is rule-based and not fully robust to all conversational inputs
-
-## Next Steps
-- Improve matcher ranking for generic foods
-- Expand portion estimation coverage
-- Compare with AI-based approach (accuracy vs cost)
-- Integrate with mobile (Flutter + speech-to-text)
+This AI PoC demonstrates that:
+- AI can significantly improve food extraction from natural input
+- the existing dataset + nutrition pipeline can remain unchanged
+- the main trade-off is between flexibility and cost/control
